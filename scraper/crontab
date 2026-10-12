@@ -1,0 +1,1 @@
+*/5 * * * * /usr/local/bin/python /app/scrape_afad.py >> /var/log/cron.log 2>&1 
