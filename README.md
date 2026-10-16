@@ -6,6 +6,10 @@ An end-to-end data engineering project that collects earthquake data from AFAD, 
 
 AFAD → MinIO (Bronze) → Apache Spark → Delta Lake (Silver) → Gold → Apache Superset
 
+## Dashboard Preview
+
+![Earthquake Dashboard](screenshots/earthquake-dashboard.png)
+
 ## Technologies
 
 - Python
