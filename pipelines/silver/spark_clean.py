@@ -1,4 +1,5 @@
 from pyspark.sql import SparkSession
+from pipelines.silver.transformations import filter_valid_magnitudes
 import os
 from pyspark.sql.functions import col, to_timestamp, when, row_number
 from pyspark.sql.window import Window
@@ -56,16 +57,14 @@ try:
     print(f"Bronze records: {df_bronze.count()}")
 
     df_transformed = (
-        df_bronze
-        .filter(
-            col("magnitude").isNotNull()
-            & (col("magnitude") > 0)
+    df_bronze
+    .transform(filter_valid_magnitudes)
+    .withColumn(
+        "cleaned_timestamp",
+        to_timestamp(col("timestamp_ts"))
+    )
         )
-        .withColumn(
-            "cleaned_timestamp",
-            to_timestamp(col("timestamp_ts"))
-        )
-        .withColumn(
+    .withColumn(
             "severity_class",
             when(col("magnitude") >= 5, "High")
             .when(col("magnitude") >= 3, "Medium")
