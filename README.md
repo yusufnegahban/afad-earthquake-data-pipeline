@@ -6,7 +6,7 @@ An end-to-end data engineering project that collects earthquake data from AFAD, 
 
 AFAD → MinIO (Bronze) → Apache Spark → Delta Lake (Silver) → Gold → Apache Superset
 
-
+```mermaid
 flowchart TD
     A["🌍 AFAD Earthquake Data"] --> B["🐍 Python Scraper"]
     B --> C["🪣 MinIO - Bronze"]
@@ -18,7 +18,7 @@ flowchart TD
 
     D -.-> I["🧪 Data Quality Tests"]
 
-
+```
 ## Dashboard Preview
 
 ![Earthquake Dashboard](screenshots/earthquake-dashboard.png)
