@@ -20,5 +20,5 @@ venv/
 Thumbs.db
 superset_home/
 notes/
-docker-compose.yml
+
 ~$*

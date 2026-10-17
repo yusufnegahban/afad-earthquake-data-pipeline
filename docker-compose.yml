@@ -1,0 +1,140 @@
+networks:
+  internal:
+    driver: bridge
+services:
+  spark:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: spark
+    command: >
+      /bin/bash -c "
+      /opt/spark/sbin/start-thriftserver.sh
+      --master local[*]
+      --jars /opt/spark/extra-jars/io.delta_delta-spark_2.12-3.2.0.jar,/opt/spark/extra-jars/io.delta_delta-storage-3.2.0.jar,/opt/spark/extra-jars/org.apache.hadoop_hadoop-aws-3.3.4.jar,/opt/spark/extra-jars/com.amazonaws_aws-java-sdk-bundle-1.12.262.jar
+      --conf spark.driver.extraClassPath=/opt/spark/extra-jars/io.delta_delta-spark_2.12-3.2.0.jar:/opt/spark/extra-jars/io.delta_delta-storage-3.2.0.jar:/opt/spark/extra-jars/org.apache.hadoop_hadoop-aws-3.3.4.jar:/opt/spark/extra-jars/com.amazonaws_aws-java-sdk-bundle-1.12.262.jar
+      --conf spark.executor.extraClassPath=/opt/spark/extra-jars/io.delta_delta-spark_2.12-3.2.0.jar:/opt/spark/extra-jars/io.delta_delta-storage-3.2.0.jar:/opt/spark/extra-jars/org.apache.hadoop_hadoop-aws-3.3.4.jar:/opt/spark/extra-jars/com.amazonaws_aws-java-sdk-bundle-1.12.262.jar
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+      --conf spark.hadoop.fs.s3a.endpoint=http://minio:9000
+      --conf spark.hadoop.fs.s3a.access.key=minio
+      --conf spark.hadoop.fs.s3a.secret.key=minio123
+      --conf spark.hadoop.fs.s3a.path.style.access=true
+      --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+      && sleep 10 &&
+      python3 /opt/spark/pipeline_runner.py
+      "
+    volumes:
+      - ./pipelines:/opt/spark/jobs
+      - ./data:/data
+      - ./jars:/opt/spark/extra-jars
+      - ./ivy2:/root/.ivy2
+      - ./pipeline_runner.py:/opt/spark/pipeline_runner.py
+    networks:
+      - internal
+
+  spark-worker:
+    image: spark:3.5.7-java17-python3
+    container_name: spark-worker
+    command: /bin/bash -c "while true; do sleep 1000; done"
+    depends_on:
+      - spark
+    networks:
+      - internal
+
+  scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: afad-scraper
+    command: >
+      /bin/bash -c "
+      while true; do
+        mkdir -p /data/mlflow-artifacts /data/earthquake-data &&
+        python3 /app/scrape_afad_new.py &&
+        echo '=== Bronze completed ===' &&
+        sleep 300;
+      done
+      "
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minio
+      - MINIO_SECRET_KEY=minio123
+      - MINIO_SECURE=false
+      - LANDING_BUCKET=earthquake-data
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./scraper:/app
+    networks:
+      - internal
+      
+      
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=minio123
+    ports:
+      - "18080:9000"  # MinIO server port
+      - "19002:9001"  # MinIO console port
+    volumes:
+      - ./minio_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s  # Allow MinIO to initialize
+
+  superset:
+    build:
+      context: .
+      dockerfile: Dockerfile.superset.dockerfile
+    container_name: superset
+    environment:
+      SUPERSET_ENV: production
+      SUPERSET_SECRET_KEY: a_very_long_random_secret_key_1234567890_abcdef
+    ports:
+      - "9090:8088"  # Superset UI port
+    volumes:
+      - ./superset_home/superset_config.py:/app/pythonpath/superset_config.py
+      - ./data:/app/data
+      - ./minio_data:/minio_data
+    networks:
+      - internal
+    command: >
+      /bin/bash -c "
+      superset db upgrade &&
+      superset init &&
+      superset run -h 0.0.0.0 -p 8088
+      "
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow
+    ports:
+      - "8080:5000"  # MLflow server port
+    volumes:
+      - ./mlruns:/mlflow
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root s3://mlflow-artifacts
+    environment:
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - internal
+
+ 
