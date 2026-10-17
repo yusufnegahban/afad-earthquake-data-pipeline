@@ -6,6 +6,19 @@ An end-to-end data engineering project that collects earthquake data from AFAD, 
 
 AFAD → MinIO (Bronze) → Apache Spark → Delta Lake (Silver) → Gold → Apache Superset
 
+
+flowchart TD
+    A["🌍 AFAD Earthquake Data"] --> B["🐍 Python Scraper"]
+    B --> C["🪣 MinIO - Bronze"]
+    C --> D["⚡ Apache Spark"]
+    D --> E["🧹 Data Cleaning"]
+    E --> F["🗄️ Delta Lake - Silver"]
+    F --> G["📊 Gold Analytical Data"]
+    G --> H["📈 Apache Superset Dashboard"]
+
+    D -.-> I["🧪 Data Quality Tests"]
+
+
 ## Dashboard Preview
 
 ![Earthquake Dashboard](screenshots/earthquake-dashboard.png)
