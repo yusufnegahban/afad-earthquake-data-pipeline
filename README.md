@@ -25,9 +25,7 @@ An end-to-end data engineering project that collects earthquake data from AFAD, 
 
 🎯 **Key Takeaway:** This project demonstrates many core data engineering concepts, from data ingestion and storage to transformation, data quality, and analytics.
 
-## Architecture
 
-AFAD → MinIO (Bronze) → Apache Spark → Delta Lake (Silver) → Gold → Apache Superset
 
 
 🌍 **Real-Time Earthquake Data Engineering**
@@ -44,7 +42,9 @@ AFAD → MinIO (Bronze) → Apache Spark → Delta Lake (Silver) → Gold → Ap
 - 📱 Real-time monitoring app and API
 - 🧠 ML model experimentation for earthquake activity forecasting
 
+## Architecture
 
+AFAD → MinIO (Bronze) → Apache Spark → Delta Lake (Silver) → Gold → Apache Superset
 ```mermaid
 flowchart TD
     A["🌍 AFAD Earthquake Data"] --> B["🐍 Python Scraper"]
